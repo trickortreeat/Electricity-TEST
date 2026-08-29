@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Award, Home, RotateCcw, Star, Trophy, Zap } from 'lucide-react';
+import { Award, Home, RotateCcw, Star, Trophy, Zap, Globe } from 'lucide-react';
 import Menu from './components/Menu';
-import Game from './components/Game';
 import Builder from './components/Builder';
 import Quiz from './components/Quiz';
 import Studio from './components/Studio';
@@ -13,8 +12,10 @@ import { GlossaryPanel } from './components/Tips';
 import { AccountChip, AccountModal, type Student } from './components/Account';
 import { LEVELS } from './levels';
 import { PANEL_TASKS } from './content';
+import { translations, type Language } from './i18n';
 
 const LS_KEY = 'electromaster_progress_v2';
+const LS_LANG_KEY = 'electromaster_language';
 
 type Screen =
   | { name: 'menu' }
@@ -55,10 +56,27 @@ export default function App() {
   const [calcOpen, setCalcOpen] = useState(false);
   const [glossOpen, setGlossOpen] = useState(false);
   const [menuMode, setMenuMode] = useState<'lessons' | 'panels' | 'exam' | undefined>(undefined);
+  const [lang, setLang] = useState<Language>(() => {
+    try {
+      const stored = localStorage.getItem(LS_LANG_KEY);
+      if (stored === 'ru' || stored === 'en') return stored;
+    } catch {}
+    return 'ru';
+  });
+
+  const t = translations[lang];
 
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(save));
   }, [save]);
+
+  useEffect(() => {
+    localStorage.setItem(LS_LANG_KEY, lang);
+  }, [lang]);
+
+  const toggleLanguage = () => {
+    setLang((prev) => (prev === 'ru' ? 'en' : 'ru'));
+  };
 
   // ---- глобальная навигация из бокового меню ----
   const navActive: NavTarget =
@@ -125,6 +143,8 @@ export default function App() {
         onNavigate={navigate}
         studentName={save.student?.name ?? null}
         stats={{ lessons: Object.keys(save.lessons).length, panels: Object.keys(save.panels).length, exam: save.exam }}
+        lang={lang}
+        onToggleLang={toggleLanguage}
       />
 
       <ScrollTop />
@@ -144,6 +164,8 @@ export default function App() {
           onStudio={() => setScreen({ name: 'studio' })}
           onTheory={() => setScreen({ name: 'theory' })}
           accountSlot={<AccountChip student={save.student} onOpen={() => setAccountOpen(true)} />}
+          lang={lang}
+          onToggleLang={toggleLanguage}
         />
       )}
 

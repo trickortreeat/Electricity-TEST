@@ -14,6 +14,7 @@ import {
   Wrench,
   X,
   Zap,
+  Globe,
 } from 'lucide-react';
 import { LEVELS } from '../levels';
 import { PANEL_TASKS } from '../content';
@@ -21,6 +22,7 @@ import { QUESTION_BANK } from '../quizBank';
 import { CHAPTERS } from '../theory';
 import { TG_URL } from './Telegram';
 import { sfx } from '../audio';
+import { translations, type Language } from '../i18n';
 
 export type NavTarget = 'menu' | 'lessons' | 'panels' | 'exam' | 'theory' | 'studio' | 'calc' | 'glossary' | 'account';
 
@@ -29,6 +31,8 @@ export interface SidebarProps {
   onNavigate: (t: NavTarget) => void;
   studentName?: string | null;
   stats?: { lessons: number; panels: number; exam: number };
+  lang?: Language;
+  onToggleLang?: () => void;
 }
 
 interface Item {
@@ -40,8 +44,10 @@ interface Item {
   badge?: string;
 }
 
-export default function Sidebar({ active, onNavigate, studentName, stats }: SidebarProps) {
+export default function Sidebar({ active, onNavigate, studentName, stats, lang = 'ru', onToggleLang }: SidebarProps) {
   const [open, setOpen] = useState(false);
+
+  const t = translations[lang];
 
   // блокируем прокрутку body при открытом меню
   useEffect(() => {
@@ -59,31 +65,31 @@ export default function Sidebar({ active, onNavigate, studentName, stats }: Side
 
   const groups: Array<{ title: string; items: Item[] }> = [
     {
-      title: 'Обучение',
+      title: t.section_learning,
       items: [
-        { id: 'lessons', label: 'Уроки', desc: `${LEVELS.length} схем в 7 актах`, icon: <LayoutGrid className="h-4 w-4" />, color: '#ffc42e', badge: stats ? `${stats.lessons}/${LEVELS.length}` : undefined },
-        { id: 'theory', label: 'Теория', desc: `${CHAPTERS.length} глав учебника`, icon: <BookOpen className="h-4 w-4" />, color: '#38bdf8' },
-        { id: 'glossary', label: 'Справочник L / N / PE', desc: 'фаза, ноль, земля и термины', icon: <HelpCircle className="h-4 w-4" />, color: '#7dd3fc' },
+        { id: 'lessons', label: t.menu_lessons, desc: `${LEVELS.length} ${lang === 'ru' ? 'схем в 7 актах' : 'schemes in 7 acts'}`, icon: <LayoutGrid className="h-4 w-4" />, color: '#ffc42e', badge: stats ? `${stats.lessons}/${LEVELS.length}` : undefined },
+        { id: 'theory', label: t.menu_theory, desc: `${CHAPTERS.length} ${lang === 'ru' ? 'глав учебника' : 'textbook chapters'}`, icon: <BookOpen className="h-4 w-4" />, color: '#38bdf8' },
+        { id: 'glossary', label: t.menu_glossary, desc: lang === 'ru' ? 'фаза, ноль, земля и термины' : 'phase, neutral, ground & terms', icon: <HelpCircle className="h-4 w-4" />, color: '#7dd3fc' },
       ],
     },
     {
-      title: 'Практика',
+      title: t.section_practice,
       items: [
-        { id: 'panels', label: 'Щитосборка', desc: `${PANEL_TASKS.length} объектов с расключением`, icon: <Wrench className="h-4 w-4" />, color: '#4ade80', badge: stats ? `${stats.panels}/${PANEL_TASKS.length}` : undefined },
-        { id: 'studio', label: 'Студия щита', desc: 'свой проект и смета', icon: <Sparkles className="h-4 w-4" />, color: '#a78bfa' },
-        { id: 'calc', label: 'Калькулятор нагрузки', desc: 'подбор автомата и сечения', icon: <Calculator className="h-4 w-4" />, color: '#34d399' },
+        { id: 'panels', label: t.menu_panels, desc: `${PANEL_TASKS.length} ${lang === 'ru' ? 'объектов с расключением' : 'objects with wiring'}`, icon: <Wrench className="h-4 w-4" />, color: '#4ade80', badge: stats ? `${stats.panels}/${PANEL_TASKS.length}` : undefined },
+        { id: 'studio', label: t.menu_studio, desc: lang === 'ru' ? 'свой проект и смета' : 'your project & estimate', icon: <Sparkles className="h-4 w-4" />, color: '#a78bfa' },
+        { id: 'calc', label: t.menu_calc, desc: lang === 'ru' ? 'подбор автомата и сечения' : 'breaker & wire sizing', icon: <Calculator className="h-4 w-4" />, color: '#34d399' },
       ],
     },
     {
-      title: 'Проверка знаний',
+      title: t.section_testing,
       items: [
-        { id: 'exam', label: 'Экзамен', desc: `${QUESTION_BANK.length} вопросов с графикой`, icon: <GraduationCap className="h-4 w-4" />, color: '#f472b6', badge: stats ? `${stats.exam}%` : undefined },
+        { id: 'exam', label: t.menu_exam, desc: `${QUESTION_BANK.length} ${lang === 'ru' ? 'вопросов с графикой' : 'questions with graphics'}`, icon: <GraduationCap className="h-4 w-4" />, color: '#f472b6', badge: stats ? `${stats.exam}%` : undefined },
       ],
     },
     {
-      title: 'Профиль и управление',
+      title: t.section_profile,
       items: [
-        { id: 'account', label: 'Аккаунт ученика', desc: studentName ?? 'войти или создать профиль', icon: <User className="h-4 w-4" />, color: '#facc15' },
+        { id: 'account', label: t.menu_account, desc: studentName ?? (lang === 'ru' ? 'войти или создать профиль' : 'login or create profile'), icon: <User className="h-4 w-4" />, color: '#facc15' },
       ],
     },
   ];
@@ -126,9 +132,11 @@ export default function Sidebar({ active, onNavigate, studentName, stats }: Side
             <div className="font-display text-base leading-none text-white">
               ЭЛЕКТРО<span className="text-volt">МАСТЕР</span>
             </div>
-            <div className="mt-1 font-mono text-[10px] text-slate-500">навигация по разделам</div>
+            <div className="mt-1 font-mono text-[10px] text-slate-500">
+              {lang === 'ru' ? 'навигация по разделам' : 'navigation'}
+            </div>
           </div>
-          <button onClick={() => setOpen(false)} aria-label="Закрыть" className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/5 hover:text-white">
+          <button onClick={() => setOpen(false)} aria-label={lang === 'ru' ? 'Закрыть' : 'Close'} className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white/5 hover:text-white">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -142,7 +150,9 @@ export default function Sidebar({ active, onNavigate, studentName, stats }: Side
             }`}
           >
             <Home className={`h-4 w-4 ${active === 'menu' ? 'text-volt' : 'text-slate-400'}`} />
-            <span className={`text-sm font-bold ${active === 'menu' ? 'text-volt' : 'text-slate-200'}`}>Главная</span>
+            <span className={`text-sm font-bold ${active === 'menu' ? 'text-volt' : 'text-slate-200'}`}>
+              {t.menu_home}
+            </span>
           </button>
         </div>
 
@@ -185,21 +195,38 @@ export default function Sidebar({ active, onNavigate, studentName, stats }: Side
 
         {/* Подвал */}
         <div className="border-t border-line px-3 py-3">
+          <button
+            onClick={() => {
+              if (onToggleLang) onToggleLang();
+              sfx.click();
+            }}
+            className="flex w-full items-center gap-3 rounded-xl border border-line bg-panel/60 px-3 py-2.5 transition hover:border-volt/40"
+          >
+            <Globe className="h-4 w-4 shrink-0 text-slate-300" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-bold text-slate-100">{t.switch_language}</span>
+              <span className="block truncate text-[10.5px] text-slate-500">
+                {lang === 'ru' ? t.lang_en : t.lang_ru}
+              </span>
+            </span>
+          </button>
           <a
             href={TG_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-3 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-2.5 transition hover:bg-sky-500/20"
+            className="mt-2 flex items-center gap-3 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-2.5 transition hover:bg-sky-500/20"
           >
             <Send className="h-4 w-4 shrink-0 text-sky-300" />
             <span className="min-w-0 flex-1">
               <span className="block text-[13px] font-bold text-sky-200">@irawiq</span>
-              <span className="block truncate text-[10px] text-slate-500">автор проекта · написать</span>
+              <span className="block truncate text-[10px] text-slate-500">
+                {lang === 'ru' ? 'автор проекта · написать' : 'project author · contact'}
+              </span>
             </span>
           </a>
           <p className="mt-2 px-1 text-[9.5px] leading-relaxed text-slate-600">
             <span className="mr-1 rounded bg-slate-700/60 px-1 py-0.5 font-mono text-[8px] font-bold text-slate-300">MVP</span>
-            демоверсия · SaaS ближе к зиме
+            {lang === 'ru' ? 'демоверсия · SaaS ближе к зиме' : 'demo version · SaaS coming this winter'}
           </p>
         </div>
       </aside>

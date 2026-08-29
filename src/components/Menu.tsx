@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Award, BookOpen, BookOpenCheck, Calculator, Check, GraduationCap, LayoutGrid, Play, ShieldAlert, ShieldCheck, Sparkles, Star, Unlock, Wrench, Zap } from 'lucide-react';
+import { Award, BookOpen, BookOpenCheck, Calculator, Check, GraduationCap, LayoutGrid, Play, ShieldAlert, ShieldCheck, Sparkles, Star, Unlock, Wrench, Zap, Globe } from 'lucide-react';
 import LoadCalc from './LoadCalc';
 import { LEVELS } from '../levels';
 import { CATALOG, PANEL_TASKS } from '../content';
@@ -10,6 +10,7 @@ import { GlossaryPanel, Tip } from './Tips';
 import { ChevronRight, HelpCircle, Shield } from 'lucide-react';
 import { CHAPTERS, LEVEL_COLORS } from '../theory';
 import type { DeviceDef } from '../types';
+import { translations, type Language } from '../i18n';
 
 const ACTS = [
   { title: 'АКТ I · Основы электрики', desc: 'провода, коробка, автомат, УЗО', range: [0, 8] as [number, number] },
@@ -65,6 +66,8 @@ export default function Menu({
   onTheory,
   initialMode,
   accountSlot,
+  lang = 'ru',
+  onToggleLang,
 }: {
   progress: Record<number, number>;
   panelProgress: Record<number, number>;
@@ -76,8 +79,12 @@ export default function Menu({
   onTheory: () => void;
   initialMode?: Mode;
   accountSlot?: React.ReactNode;
+  lang?: Language;
+  onToggleLang?: () => void;
 }) {
   const [mode, setMode] = useState<Mode>(initialMode ?? 'lessons');
+
+  const t = translations[lang];
 
   useEffect(() => {
     if (initialMode) setMode(initialMode);
