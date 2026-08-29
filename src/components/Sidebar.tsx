@@ -22,7 +22,7 @@ import { CHAPTERS } from '../theory';
 import { TG_URL } from './Telegram';
 import { sfx } from '../audio';
 
-export type NavTarget = 'menu' | 'lessons' | 'panels' | 'exam' | 'theory' | 'studio' | 'admin' | 'calc' | 'glossary' | 'account';
+export type NavTarget = 'menu' | 'lessons' | 'panels' | 'exam' | 'theory' | 'studio' | 'calc' | 'glossary' | 'account';
 
 export interface SidebarProps {
   active?: NavTarget;
@@ -84,7 +84,6 @@ export default function Sidebar({ active, onNavigate, studentName, stats }: Side
       title: 'Профиль и управление',
       items: [
         { id: 'account', label: 'Аккаунт ученика', desc: studentName ?? 'войти или создать профиль', icon: <User className="h-4 w-4" />, color: '#facc15' },
-        { id: 'admin', label: 'Администратор', desc: 'управление учениками', icon: <Shield className="h-4 w-4" />, color: '#f87171' },
       ],
     },
   ];

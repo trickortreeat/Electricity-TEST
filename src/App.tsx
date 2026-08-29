@@ -5,7 +5,6 @@ import Game from './components/Game';
 import Builder from './components/Builder';
 import Quiz from './components/Quiz';
 import Studio from './components/Studio';
-import Admin, { type StudentRecord } from './components/Admin';
 import Theory from './components/Theory';
 import Sidebar, { type NavTarget } from './components/Sidebar';
 import ScrollTop from './components/ScrollTop';
@@ -23,7 +22,6 @@ type Screen =
   | { name: 'build'; taskIdx: number }
   | { name: 'exam' }
   | { name: 'studio' }
-  | { name: 'admin' }
   | { name: 'theory' }
   | { name: 'final' };
 
@@ -76,9 +74,7 @@ export default function App() {
               ? 'theory'
               : screen.name === 'studio'
                 ? 'studio'
-                : screen.name === 'admin'
-                  ? 'admin'
-                  : 'menu';
+                : 'menu';
 
   const navigate = (t: NavTarget) => {
     switch (t) {
@@ -101,9 +97,6 @@ export default function App() {
         break;
       case 'studio':
         setScreen({ name: 'studio' });
-        break;
-      case 'admin':
-        setScreen({ name: 'admin' });
         break;
       case 'calc':
         setCalcOpen(true);
@@ -149,7 +142,6 @@ export default function App() {
           onBuild={(i) => setScreen({ name: 'build', taskIdx: i })}
           onExam={() => setScreen({ name: 'exam' })}
           onStudio={() => setScreen({ name: 'studio' })}
-          onAdmin={() => setScreen({ name: 'admin' })}
           onTheory={() => setScreen({ name: 'theory' })}
           accountSlot={<AccountChip student={save.student} onOpen={() => setAccountOpen(true)} />}
         />
@@ -158,10 +150,6 @@ export default function App() {
       {screen.name === 'studio' && <Studio onExit={() => setScreen({ name: 'menu' })} />}
 
       {screen.name === 'theory' && <Theory onExit={() => setScreen({ name: 'menu' })} />}
-
-      {screen.name === 'admin' && (
-        <Admin students={save.students} onChange={(students) => setSave((v) => ({ ...v, students }))} onExit={() => setScreen({ name: 'menu' })} />
-      )}
 
       {accountOpen && (
         <AccountModal
