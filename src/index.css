@@ -1,0 +1,275 @@
+@import "tailwindcss";
+
+/* ---------- Mobile-first responsive helpers ---------- */
+@custom-variant mobile-first (*);
+
+/* Ensure touch targets are at least 44px on mobile */
+@media (max-width: 640px) {
+  button, a, [role="button"] {
+    min-height: 44px;
+  }
+}
+
+/* Prevent horizontal scroll on narrow screens */
+html {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+@theme {
+  --font-display: "Russo One", system-ui, sans-serif;
+  --font-sans: "Manrope", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-panel: #0d1420;
+  --color-panel-2: #111a2a;
+  --color-line: #22304a;
+  --color-volt: #ffc42e;
+  --color-volt-2: #ff9d1b;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: #070b12;
+  color: #e7eefc;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* --- фон «чертёжная сетка» --- */
+.blueprint {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(96, 128, 180, 0.16) 1px, transparent 0),
+    linear-gradient(rgba(70, 98, 150, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(70, 98, 150, 0.07) 1px, transparent 1px);
+  background-size: 26px 26px, 130px 130px, 130px 130px;
+}
+
+/* --- клеммы --- */
+.term {
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.term:hover .term-ring {
+  stroke: #ffc42e;
+  stroke-width: 3;
+}
+.term.active .term-ring {
+  stroke: #ffc42e;
+  stroke-width: 3.5;
+  animation: termPulse 1s infinite;
+}
+.term.hinted .term-ring {
+  stroke: #4ade80;
+  stroke-width: 3.5;
+  animation: termPulse 0.8s infinite;
+}
+@keyframes termPulse {
+  0% { r: 12; opacity: 1; }
+  50% { r: 15; opacity: 0.65; }
+  100% { r: 12; opacity: 1; }
+}
+
+/* --- провода --- */
+.wire-hit {
+  cursor: pointer;
+}
+.wire-group:hover .wire-casing {
+  stroke: #ff5d5d;
+}
+@keyframes dashFlow {
+  to { stroke-dashoffset: -26; }
+}
+.wire-live .wire-flow {
+  animation: dashFlow 0.9s linear infinite;
+}
+
+/* --- тряска при КЗ --- */
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  15% { transform: translate(-9px, 4px); }
+  30% { transform: translate(8px, -5px); }
+  45% { transform: translate(-7px, -3px); }
+  60% { transform: translate(6px, 4px); }
+  75% { transform: translate(-4px, 2px); }
+}
+.shake {
+  animation: shake 0.45s ease;
+}
+
+@keyframes flashRed {
+  0% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+.flash-red {
+  animation: flashRed 0.6s ease forwards;
+}
+
+@keyframes popIn {
+  0% { opacity: 0; transform: translateY(14px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.pop-in {
+  animation: popIn 0.35s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+
+@keyframes glowPulse {
+  0%, 100% { filter: drop-shadow(0 0 14px rgba(255, 196, 46, 0.55)); }
+  50% { filter: drop-shadow(0 0 30px rgba(255, 196, 46, 0.95)); }
+}
+.glow-amber {
+  animation: glowPulse 2.2s ease-in-out infinite;
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.floaty {
+  animation: floaty 5s ease-in-out infinite;
+}
+
+@keyframes sparkFall {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--sx, 10px), 60px) scale(0.2); opacity: 0; }
+}
+.spark {
+  animation: sparkFall 0.8s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Скрытие сторонних бейджей/плашек, внедряемых сборщиком в тело документа */
+body > a[href*="arena"],
+body > span[style*="arena"],
+body > div[style*="arena"],
+body > div[id*="arena"],
+body > div[class*="arena"],
+div[id*="arena-badge"],
+[class*="arena-badge"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* --- появление блоков снизу --- */
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.reveal {
+  animation: revealUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* --- бегущий блик по кнопке --- */
+@keyframes sheen {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  100% { transform: translateX(260%) skewX(-18deg); }
+}
+.sheen {
+  position: relative;
+  overflow: hidden;
+}
+.sheen::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  animation: sheen 3.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* --- мягкое дыхание рамки --- */
+@keyframes borderPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 196, 46, 0.25); }
+  50% { box-shadow: 0 0 0 7px rgba(255, 196, 46, 0); }
+}
+.pulse-ring {
+  animation: borderPulse 2.6s ease-out infinite;
+}
+
+/* --- плавный подъём карточки --- */
+.lift {
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.28s ease, border-color 0.2s ease;
+}
+.lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.85);
+}
+
+/* --- градиентный текст с переливом --- */
+@keyframes hueShift {
+  0%, 100% { filter: hue-rotate(0deg); }
+  50% { filter: hue-rotate(-14deg); }
+}
+.shimmer-text {
+  background: linear-gradient(92deg, #ffc42e 0%, #ffe89a 42%, #ff9d1b 68%, #ffc42e 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: bgSlide 6s ease-in-out infinite, hueShift 8s ease-in-out infinite;
+}
+@keyframes bgSlide {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* --- медленное вращение ореола --- */
+@keyframes slowSpin {
+  to { transform: rotate(360deg); }
+}
+.aura::before {
+  content: '';
+  position: absolute;
+  inset: -40%;
+  background: conic-gradient(from 0deg, rgba(255, 196, 46, 0.12), transparent 35%, rgba(61, 139, 255, 0.12) 60%, transparent 85%);
+  animation: slowSpin 22s linear infinite;
+  pointer-events: none;
+}
+
+/* --- счётчик прогресса --- */
+@keyframes progressGlow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.35); }
+}
+.progress-live {
+  animation: progressGlow 2s ease-in-out infinite;
+}
+
+::selection {
+  background: rgba(255, 196, 46, 0.35);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0f18;
+}
+::-webkit-scrollbar-thumb {
+  background: #26334c;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #35496c;
+}
