@@ -13,13 +13,13 @@ import type { DeviceDef } from '../types';
 import { translations, type Language } from '../i18n';
 
 const ACTS = [
-  { title: 'АКТ I · Основы электрики', desc: 'провода, коробка, автомат, УЗО', range: [0, 8] as [number, number] },
-  { title: 'АКТ II · Свет и управление', desc: 'проходные, диммер, датчик, счётчик', range: [8, 14] as [number, number] },
-  { title: 'АКТ III · Защита и номиналы', desc: 'сечения, селективность, РН, УЗИП', range: [14, 22] as [number, number] },
-  { title: 'АКТ IV · Спецнагрузки', desc: 'кондиционер, тёплый пол, кухня', range: [22, 28] as [number, number] },
-  { title: 'АКТ V · Большой щит квартиры', desc: '5 комнат, 10 групп, две шины', range: [28, 30] as [number, number] },
-  { title: 'АКТ VI · Профессиональный уровень', desc: 'кросс-модуль, контактор, 380 В, зарядки EV', range: [30, 36] as [number, number] },
-  { title: 'АКТ VII · Современная аппаратура', desc: '2P-автоматы, импульсное реле, фотореле, УЗО 4P', range: [36, 40] as [number, number] },
+  { title: 'act1_title', desc: 'act1_desc', range: [0, 8] as [number, number] },
+  { title: 'act2_title', desc: 'act2_desc', range: [8, 14] as [number, number] },
+  { title: 'act3_title', desc: 'act3_desc', range: [14, 22] as [number, number] },
+  { title: 'act4_title', desc: 'act4_desc', range: [22, 28] as [number, number] },
+  { title: 'act5_title', desc: 'act5_desc', range: [28, 30] as [number, number] },
+  { title: 'act6_title', desc: 'act6_desc', range: [30, 36] as [number, number] },
+  { title: 'act7_title', desc: 'act7_desc', range: [36, 40] as [number, number] },
 ];
 
 const MENU_DEVICES: DeviceDef[] = [
@@ -97,6 +97,10 @@ export default function Menu({
   const nextIdx = LEVELS.findIndex((l) => !progress[l.id]);
   const startIdx = nextIdx === -1 ? 0 : nextIdx;
 
+  // Helper для подстановки переменных в строки
+  const fmt = (s: string, vars: Record<string, string | number>) =>
+    s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ''));
+
   return (
     <div className="min-h-screen bg-[#070b12] blueprint">
       {/* верхняя строка: место под кнопку сайдбара слева */}
@@ -149,10 +153,10 @@ export default function Menu({
           {/* быстрые плитки — 2 колонки на телефоне */}
           <div className="mt-5 grid grid-cols-2 gap-2 sm:max-w-lg sm:gap-3 lg:grid-cols-4">
             {[
-              { icon: <BookOpenCheck className="h-4 w-4 text-sky-400 sm:h-5 sm:w-5" />, t: `${LEVELS.length} уроков`, d: '7 актов' },
-              { icon: <Wrench className="h-4 w-4 text-emerald-400 sm:h-5 sm:w-5" />, t: `${PANEL_TASKS.length} щитов`, d: 'с расключением' },
-              { icon: <GraduationCap className="h-4 w-4 text-fuchsia-400 sm:h-5 sm:w-5" />, t: `${QUESTION_BANK.length} вопросов`, d: 'экзамен' },
-              { icon: <Unlock className="h-4 w-4 text-volt sm:h-5 sm:w-5" />, t: `${CATALOG.length} аппаратов`, d: 'каталог' },
+              { icon: <BookOpenCheck className="h-4 w-4 text-sky-400 sm:h-5 sm:w-5" />, t: fmt(t.hero_quick_lessons, { count: LEVELS.length }), d: t.hero_quick_lessons_sub },
+              { icon: <Wrench className="h-4 w-4 text-emerald-400 sm:h-5 sm:w-5" />, t: fmt(t.hero_quick_panels, { count: PANEL_TASKS.length }), d: t.hero_quick_panels_sub },
+              { icon: <GraduationCap className="h-4 w-4 text-fuchsia-400 sm:h-5 sm:w-5" />, t: fmt(t.hero_quick_exam, { count: QUESTION_BANK.length }), d: t.hero_quick_exam_sub },
+              { icon: <Unlock className="h-4 w-4 text-volt sm:h-5 sm:w-5" />, t: fmt(t.hero_quick_catalog, { count: CATALOG.length }), d: t.hero_quick_catalog_sub },
             ].map((c, i) => (
               <div key={i} className="reveal lift rounded-2xl border border-line bg-panel p-3" style={{ animationDelay: `${i * 90}ms` }}>
                 {c.icon}
@@ -190,11 +194,11 @@ export default function Menu({
       <div className="mx-auto w-full max-w-6xl px-4 pb-5">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           {[
-            { t: 'Теория', d: `${CHAPTERS.length} глав`, ic: <BookOpen className="h-5 w-5" />, c: '#38bdf8', go: onTheory },
-            { t: 'Щитосборка', d: `${PANEL_TASKS.length} объектов`, ic: <Wrench className="h-5 w-5" />, c: '#4ade80', go: () => setMode('panels') },
-            { t: 'Студия щита', d: 'свой проект', ic: <Sparkles className="h-5 w-5" />, c: '#a78bfa', go: onStudio },
-            { t: 'Калькулятор', d: 'нагрузка', ic: <Calculator className="h-5 w-5" />, c: '#34d399', go: () => setCalc(true) },
-            { t: 'Экзамен', d: `${QUESTION_BANK.length} вопросов`, ic: <GraduationCap className="h-5 w-5" />, c: '#f472b6', go: onExam },
+            { t: t.tile_theory, d: fmt(t.tile_theory_sub, { count: CHAPTERS.length }), ic: <BookOpen className="h-5 w-5" />, c: '#38bdf8', go: onTheory },
+            { t: t.tile_panels, d: fmt(t.tile_panels_sub, { count: PANEL_TASKS.length }), ic: <Wrench className="h-5 w-5" />, c: '#4ade80', go: () => setMode('panels') },
+            { t: t.tile_studio, d: t.tile_studio_sub, ic: <Sparkles className="h-5 w-5" />, c: '#a78bfa', go: onStudio },
+            { t: t.tile_calc, d: t.tile_calc_sub, ic: <Calculator className="h-5 w-5" />, c: '#34d399', go: () => setCalc(true) },
+            { t: t.tile_exam, d: fmt(t.tile_exam_sub, { count: QUESTION_BANK.length }), ic: <GraduationCap className="h-5 w-5" />, c: '#f472b6', go: onExam },
           ].map((q, i) => (
             <button
               key={q.t}
@@ -226,30 +230,29 @@ export default function Menu({
                 <BookOpen className="h-7 w-7 text-sky-300 sm:h-11 sm:w-11" />
               </div>
               <div className="lg:hidden">
-                <div className="font-mono text-[10px] tracking-widest text-sky-400 uppercase">{CHAPTERS.length} глав · 6 частей</div>
-                <h2 className="font-display text-xl leading-tight text-white">ТЕОРИЯ ЭЛЕКТРОМОНТАЖА</h2>
+                <div className="font-mono text-[10px] tracking-widest text-sky-400 uppercase">{fmt(t.theory_section_subtitle, { count: CHAPTERS.length })}</div>
+                <h2 className="font-display text-xl leading-tight text-white">{t.theory_section_title}</h2>
               </div>
             </div>
             <div className="min-w-0 flex-1">
               <div className="hidden font-mono text-[11px] tracking-widest text-sky-400 uppercase lg:block">
-                Полный учебник · {CHAPTERS.length} глав в 6 частях
+                {fmt(t.theory_section_subtitle, { count: CHAPTERS.length })}
               </div>
-              <h2 className="hidden font-display text-3xl leading-tight text-white lg:mt-1.5 lg:block lg:text-4xl">ТЕОРИЯ ЭЛЕКТРОМОНТАЖА</h2>
+              <h2 className="hidden font-display text-3xl leading-tight text-white lg:mt-1.5 lg:block lg:text-4xl">{t.theory_section_title}</h2>
               <p className="text-[13px] leading-relaxed text-slate-400 sm:text-[14.5px] lg:mt-2.5">
-                Настоящая книга внутри тренажёра: от «что такое электрон» до систем заземления, трёхфазных сетей,
-                частотных приводов, взрывозащиты и требований ПУЭ. Простым языком, с иллюстрациями и формулами.
+                {t.theory_section_desc}
               </p>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {['Азы', 'База', 'Практика', 'Профи', 'Нормативы', 'Мастер'].map((l) => (
+                {[t.theory_tags_base, t.theory_tags_fundamentals, t.theory_tags_practice, t.theory_tags_profi, t.theory_tags_norms, t.theory_tags_master].map((l) => (
                   <span key={l} className="rounded-lg px-2 py-1 font-mono text-[9.5px] font-bold sm:text-[10.5px]" style={{ background: `${LEVEL_COLORS[l as keyof typeof LEVEL_COLORS]}1f`, color: LEVEL_COLORS[l as keyof typeof LEVEL_COLORS] }}>
                     {l}
                   </span>
                 ))}
-                <span className="rounded-lg bg-[#0a101b] px-2 py-1 font-mono text-[9.5px] text-slate-500 sm:text-[10.5px]">≈ {Math.round(theoryMin / 60)} ч чтения</span>
+                <span className="rounded-lg bg-[#0a101b] px-2 py-1 font-mono text-[9.5px] text-slate-500 sm:text-[10.5px]">{fmt(t.theory_read_time, { hours: Math.round(theoryMin / 60) })}</span>
               </div>
             </div>
             <span className="sheen flex items-center justify-center gap-2 rounded-2xl bg-sky-400 px-5 py-3.5 font-display text-[13px] tracking-wide text-black transition group-hover:bg-sky-300 sm:text-sm lg:px-6 lg:py-4">
-              ЧИТАТЬ УЧЕБНИК <ChevronRight className="h-4 w-4" />
+              {t.theory_btn} <ChevronRight className="h-4 w-4" />
             </span>
           </div>
         </button>
@@ -260,9 +263,9 @@ export default function Menu({
         <div className="flex gap-1 rounded-2xl border border-line bg-panel/70 p-1.5">
           {(
             [
-              { id: 'lessons', icon: <LayoutGrid className="h-4 w-4" />, t: 'Уроки', s: `${totalStars}/${LEVELS.length * 3} ★` },
-              { id: 'panels', icon: <Wrench className="h-4 w-4" />, t: 'Щиты', s: `${panelStars}/${PANEL_TASKS.length * 3} ★` },
-              { id: 'exam', icon: <GraduationCap className="h-4 w-4" />, t: 'Экзамен', s: `${examBest}%` },
+              { id: 'lessons', icon: <LayoutGrid className="h-4 w-4" />, t: t.tab_lessons, s: `${totalStars}/${LEVELS.length * 3} ${t.stats_stars}` },
+              { id: 'panels', icon: <Wrench className="h-4 w-4" />, t: t.tab_panels, s: `${panelStars}/${PANEL_TASKS.length * 3} ${t.stats_stars}` },
+              { id: 'exam', icon: <GraduationCap className="h-4 w-4" />, t: t.tab_exam, s: `${examBest}%` },
             ] as const
           ).map((m) => (
             <button
@@ -329,36 +332,36 @@ export default function Menu({
       {mode === 'panels' && (
         <div className="mx-auto w-full max-w-6xl px-4 pb-6">
           <div className="mt-6 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5">
-            <h2 className="font-display text-lg text-white">Щитосборка: 20 реальных объектов</h2>
+            <h2 className="font-display text-lg text-white">{t.tile_panels}: 20 {t.stats_panels}</h2>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
-              Выберите аппараты из каталога (автоматы всех номиналов, УЗО, дифавтоматы, реле напряжения, УЗИП, счётчик,
+              {t.panels_select_device}
               контакторы, кросс-модули, гребёнки и шины) и расставьте их по DIN-рейкам — от студии до коттеджа с
               зарядкой электромобилей.
             </p>
           </div>
           <div className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {PANEL_TASKS.map((t, i) => {
-              const st = panelProgress[t.id] ?? 0;
-              const mods = t.rails.reduce((a, r) => a + r.slots.length, 0);
+            {PANEL_TASKS.map((pt, i) => {
+              const st = panelProgress[pt.id] ?? 0;
+              const mods = pt.rails.reduce((a, r) => a + r.slots.length, 0);
               return (
                 <button
-                  key={t.id}
+                  key={pt.id}
                   onClick={() => onBuild(i)}
                   style={{ animationDelay: `${i * 40}ms` }}
                   className="reveal lift group relative overflow-hidden rounded-2xl border border-line bg-panel p-5 text-left hover:border-emerald-400/60"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="font-display text-[15px] text-white">{t.title}</div>
-                      <div className="mt-1 text-xs text-slate-500">{t.place}</div>
+                      <div className="font-display text-[15px] text-white">{pt.title}</div>
+                      <div className="mt-1 text-xs text-slate-500">{pt.place}</div>
                     </div>
                     <span className="rounded-md bg-emerald-500/15 p-1.5">
                       {st > 0 ? <Check className="h-4 w-4 text-emerald-400" /> : <Wrench className="h-4 w-4 text-emerald-400" />}
                     </span>
                   </div>
-                  <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-slate-400">{t.brief}</p>
+                  <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-slate-400">{pt.brief}</p>
                   <div className="mt-3 flex items-center gap-3">
-                    <span className="rounded-lg bg-[#0a101b] px-2 py-1 font-mono text-[10px] text-slate-500">{t.rails.length} рейки</span>
+                    <span className="rounded-lg bg-[#0a101b] px-2 py-1 font-mono text-[10px] text-slate-500">{pt.rails.length} {t.tab_panels}</span>
                     <span className="rounded-lg bg-[#0a101b] px-2 py-1 font-mono text-[10px] text-slate-500">{mods} модулей</span>
                     <div className="ml-auto flex gap-1">
                       {[1, 2, 3].map((s) => (
@@ -379,17 +382,17 @@ export default function Menu({
             <div className="mx-auto w-fit rounded-2xl bg-fuchsia-500/15 p-4">
               <GraduationCap className="h-10 w-10 text-fuchsia-300" />
             </div>
-            <h2 className="mt-4 font-display text-2xl text-white">Экзамен: подбор аппаратуры</h2>
+            <h2 className="mt-4 font-display text-2xl text-white">{t.exam_title}: подбор аппаратуры</h2>
             <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed text-slate-400">
-              Банк из {QUESTION_BANK.length} вопросов с иллюстрациями: номиналы под сечение кабеля, расчёт токов, выбор
+              {fmt(t.exam_intro_desc, { count: QUESTION_BANK.length })}
               УЗО, характеристики B/C/D, системы заземления, диагностика аварий, зарядки электромобилей. Можно выбрать
-              тему и длину экзамена, после каждого ответа — объяснение.
+              {t.panels_device_desc}
             </p>
             <div className="mt-4 flex items-center justify-center gap-2 font-mono text-xs text-slate-500">
-              <Award className="h-4 w-4 text-volt" /> лучший результат: {examBest}%
+              <Award className="h-4 w-4 text-volt" /> {t.stats_exam}: {examBest}%
             </div>
             <button onClick={onExam} className="mt-6 rounded-2xl bg-volt px-8 py-4 font-display text-sm tracking-wide text-black transition hover:bg-volt-2">
-              НАЧАТЬ ЭКЗАМЕН
+              {t.exam_start_btn}
             </button>
           </div>
         </div>
