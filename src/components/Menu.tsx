@@ -90,7 +90,8 @@ export default function Menu({
 
   // Проверка доступа к уроку на основе записи студента из Supabase
   const isLessonLocked = (lessonId: number): boolean => {
-    if (!studentRecord) return false; // Нет авторизации - доступ открыт
+    // Fail-closed: если студент не авторизован или профиль не загружен - доступ закрыт
+    if (!studentRecord) return true;
     if (!studentRecord.is_active) return true; // Аккаунт не активен
     if (studentRecord.lockAll) return true; // Все уроки заблокированы админом
     // Если allowed пустой - все уроки открыты, иначе проверяем наличие урока в списке

@@ -12,6 +12,7 @@ import ScrollTop from './components/ScrollTop';
 import LoadCalc from './components/LoadCalc';
 import { GlossaryPanel } from './components/Tips';
 import { AccountChip, AccountModal, type Student } from './components/Account';
+import { LessonGate } from './components/LessonGate';
 import { LEVELS } from './levels';
 import { PANEL_TASKS } from './content';
 import { supabase, toStudentProfile, createEmptyStudentRecord, type StudentProfile } from './lib/supabase';
@@ -74,9 +75,9 @@ export default function App() {
           .from('students')
           .select('*')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle();
 
-        if (fetchError && fetchError.code !== 'PGRST116') {
+        if (fetchError) {
           throw fetchError;
         }
 
@@ -92,9 +93,23 @@ export default function App() {
           }));
           // Обновление last_seen
           await supabase.from('students').update({ last_seen: new Date().toISOString() }).eq('id', session.user.id);
+        } else {
+          // Профиль не найден - fail-closed: очищаем данные ученика
+          console.warn('Профиль ученика не найден в таблице students');
+          setSave((prev) => ({
+            ...prev,
+            student: null,
+            studentRecord: null,
+          }));
         }
       } catch (e) {
         console.error('Ошибка загрузки профиля:', e);
+        // При ошибке - fail-closed: очищаем данные ученика
+        setSave((prev) => ({
+          ...prev,
+          student: null,
+          studentRecord: null,
+        }));
       } finally {
         setLoadingProgress(false);
       }
@@ -221,9 +236,18 @@ export default function App() {
         />
       )}
 
-      {screen.name === 'studio' && <Studio onExit={() => setScreen({ name: 'menu' })} />}
 
-      {screen.name === 'theory' && <Theory onExit={() => setScreen({ name: 'menu' })} />}
+      {screen.name === 'studio' && (
+        <LessonGate student={save.studentRecord} lessonId={-1}>
+          <Studio onExit={() => setScreen({ name: 'menu' })} />
+        </LessonGate>
+      )}
+
+      {screen.name === 'theory' && (
+        <LessonGate student={save.studentRecord} lessonId={-1}>
+          <Theory onExit={() => setScreen({ name: 'menu' })} />
+        </LessonGate>
+      )}
 
       {screen.name === 'admin' && (
         <Admin students={save.students} onChange={(students) => setSave((v) => ({ ...v, students }))} onExit={() => setScreen({ name: 'menu' })} />
@@ -251,43 +275,49 @@ export default function App() {
       )}
 
       {screen.name === 'game' && (
-        <Game
-          key={LEVELS[screen.levelIdx].id}
-          level={LEVELS[screen.levelIdx]}
-          isLast={screen.levelIdx === LEVELS.length - 1}
-          totalLevels={LEVELS.length}
-          onExit={() => setScreen({ name: 'menu' })}
-          onFinished={onLessonDone}
-          onNext={() =>
-            screen.levelIdx === LEVELS.length - 1
-              ? setScreen({ name: 'final' })
-              : setScreen({ name: 'game', levelIdx: screen.levelIdx + 1 })
-          }
-        />
+        <LessonGate student={save.studentRecord} lessonId={LEVELS[screen.levelIdx].id}>
+          <Game
+            key={LEVELS[screen.levelIdx].id}
+            level={LEVELS[screen.levelIdx]}
+            isLast={screen.levelIdx === LEVELS.length - 1}
+            totalLevels={LEVELS.length}
+            onExit={() => setScreen({ name: 'menu' })}
+            onFinished={onLessonDone}
+            onNext={() =>
+              screen.levelIdx === LEVELS.length - 1
+                ? setScreen({ name: 'final' })
+                : setScreen({ name: 'game', levelIdx: screen.levelIdx + 1 })
+            }
+          />
+        </LessonGate>
       )}
 
       {screen.name === 'build' && (
-        <Builder
-          key={PANEL_TASKS[screen.taskIdx].id}
-          task={PANEL_TASKS[screen.taskIdx]}
-          isLast={screen.taskIdx === PANEL_TASKS.length - 1}
-          onExit={() => setScreen({ name: 'menu' })}
-          onFinished={onPanelDone}
-          onNext={() =>
-            screen.taskIdx === PANEL_TASKS.length - 1
-              ? setScreen({ name: 'final' })
-              : setScreen({ name: 'build', taskIdx: screen.taskIdx + 1 })
-          }
-        />
+        <LessonGate student={save.studentRecord} lessonId={PANEL_TASKS[screen.taskIdx].id}>
+          <Builder
+            key={PANEL_TASKS[screen.taskIdx].id}
+            task={PANEL_TASKS[screen.taskIdx]}
+            isLast={screen.taskIdx === PANEL_TASKS.length - 1}
+            onExit={() => setScreen({ name: 'menu' })}
+            onFinished={onPanelDone}
+            onNext={() =>
+              screen.taskIdx === PANEL_TASKS.length - 1
+                ? setScreen({ name: 'final' })
+                : setScreen({ name: 'build', taskIdx: screen.taskIdx + 1 })
+            }
+          />
+        </LessonGate>
       )}
 
       {screen.name === 'exam' && (
-        <Quiz
-          onExit={() => setScreen({ name: 'menu' })}
-          onFinished={(score, total) =>
-            setSave((s) => ({ ...s, exam: Math.max(s.exam, Math.round((score / Math.max(1, total)) * 100)) }))
-          }
-        />
+        <LessonGate student={save.studentRecord} lessonId={-2}>
+          <Quiz
+            onExit={() => setScreen({ name: 'menu' })}
+            onFinished={(score, total) =>
+              setSave((s) => ({ ...s, exam: Math.max(s.exam, Math.round((score / Math.max(1, total)) * 100)) }))
+            }
+          />
+        </LessonGate>
       )}
 
       {screen.name === 'final' && (
