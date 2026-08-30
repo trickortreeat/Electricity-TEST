@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { GraduationCap, LogOut, Pencil, User, X } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export interface Student {
+  id?: string;
   name: string;
   group: string;
   since: string;
@@ -53,21 +55,100 @@ export function AccountModal({
   const [hints, setHints] = useState(student?.hints ?? true);
   const [bigText, setBigText] = useState(student?.bigText ?? false);
   const [edit, setEdit] = useState(!student);
+  const [loading, setLoading] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
 
-  const save = () => {
+  const save = async () => {
     if (!name.trim()) return;
-    onSave({
+    const studentData: Student = {
+      id: student?.id,
       name: name.trim(),
       group: group.trim() || 'Самостоятельное обучение',
-      since: student?.since ?? new Date().toLocaleDateString('ru-RU'),
+      since: student?.since ?? new Date().toISOString().split('T')[0],
       city: city.trim(),
       goal,
       level,
       sound,
       hints,
       bigText,
+    };
+    
+    // If creating new student with email/password, save to Supabase
+    if (!student?.id && loginEmail.trim() && loginPassword.trim()) {
+      setLoading(true);
+      const { data, error } = await supabase.from('students').insert([{
+        name: name.trim(),
+        group: group.trim() || 'Самостоятельное обучение',
+        email: loginEmail.trim(),
+        password: loginPassword.trim(),
+        since: new Date().toISOString().split('T')[0],
+        allowed: [],
+        lockAll: false,
+        lessons: {},
+        panels: {},
+        exam: 0,
+        note: '',
+        is_active: true,
+      }]).select().single();
+      
+      setLoading(false);
+      if (error) {
+        console.error('Error saving student:', error);
+      } else if (data) {
+        studentData.id = data.id;
+      }
+    }
+    
+    onSave(studentData);
+    setEdit(false);
+    setLoginEmail('');
+    setLoginPassword('');
+  };
+
+  const login = async () => {
+    if (!loginEmail.trim() || !loginPassword.trim()) return;
+    setLoading(true);
+    setLoginError('');
+    
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .eq('email', loginEmail.trim())
+      .eq('password', loginPassword.trim())
+      .single();
+    
+    setLoading(false);
+    
+    if (error || !data) {
+      setLoginError('Неверный email или пароль');
+      return;
+    }
+    
+    // Update last_seen
+    await supabase.from('students').update({ last_seen: new Date().toISOString() }).eq('id', data.id);
+    
+    onSave({
+      id: data.id,
+      name: data.name,
+      group: data.group || '',
+      since: data.since || new Date().toISOString().split('T')[0],
+      city: '',
+      goal: '',
+      level: '',
+      sound: true,
+      hints: true,
+      bigText: false,
     });
     setEdit(false);
+  };
+
+  const logout = async () => {
+    onLogout();
+    setLoginEmail('');
+    setLoginPassword('');
+    setLoginError('');
   };
 
   const pct = Math.round(((stats.lessons + stats.panels) / Math.max(1, stats.lessonsMax + stats.panelsMax)) * 100);
