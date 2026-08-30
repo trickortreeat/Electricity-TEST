@@ -160,7 +160,7 @@ export default function App() {
       {screen.name === 'theory' && <Theory onExit={() => setScreen({ name: 'menu' })} />}
 
       {screen.name === 'admin' && (
-        <Admin students={save.students} onChange={(students) => setSave((v) => ({ ...v, students }))} onExit={() => setScreen({ name: 'menu' })} />
+        <Admin onExit={() => setScreen({ name: 'menu' })} />
       )}
 
       {accountOpen && (

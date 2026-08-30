@@ -1,13 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Check, Lock, Plus, Search, Shield, Trash2, Unlock, UserPlus, Users } from 'lucide-react';
 import { LEVELS } from '../levels';
 import { PANEL_TASKS } from '../content';
 import { MvpNote, TgBadge } from './Telegram';
 import { sfx } from '../audio';
+import { supabase } from '../lib/supabase';
 
 export interface StudentRecord {
   id: string;
   name: string;
+  email?: string;
+  password?: string;
   group: string;
   since: string;
   allowed: number[];       // id открытых уроков; пустой массив = все открыты
@@ -18,12 +21,14 @@ export interface StudentRecord {
   note: string;
 }
 
-export function makeStudent(name: string, group: string): StudentRecord {
+export function makeStudent(name: string, group: string, email: string = '', password: string = ''): StudentRecord {
   return {
     id: `s${Date.now()}${Math.floor(Math.random() * 999)}`,
     name,
+    email,
+    password,
     group,
-    since: new Date().toLocaleDateString('ru-RU'),
+    since: new Date().toISOString().split('T')[0],
     allowed: [],
     lockAll: false,
     lessons: {},
@@ -36,20 +41,148 @@ export function makeStudent(name: string, group: string): StudentRecord {
 const PIN = '2024';
 
 export default function Admin({
-  students,
-  onChange,
   onExit,
 }: {
-  students: StudentRecord[];
-  onChange: (s: StudentRecord[]) => void;
   onExit: () => void;
 }) {
   const [authed, setAuthed] = useState(false);
   const [pin, setPin] = useState('');
-  const [sel, setSel] = useState<string | null>(students[0]?.id ?? null);
+  const [students, setStudents] = useState<StudentRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sel, setSel] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [newName, setNewName] = useState('');
   const [newGroup, setNewGroup] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+
+  useEffect(() => {
+    loadStudents();
+  }, []);
+
+  const loadStudents = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('students').select('*').order('created_at', { ascending: false });
+    if (error) {
+      console.error('Error loading students:', error);
+    } else if (data) {
+      const mapped: StudentRecord[] = data.map((row: any) => ({
+        id: row.id,
+        name: row.name || '',
+        email: row.email || '',
+        password: row.password || '',
+        group: row.group || '',
+        since: row.since || new Date().toISOString().split('T')[0],
+        allowed: Array.isArray(row.allowed) ? row.allowed : [],
+        lockAll: row.lockAll || row.is_active === false,
+        lessons: row.lessons || {},
+        panels: row.panels || {},
+        exam: row.exam || 0,
+        note: row.note || '',
+      }));
+      setStudents(mapped);
+      if (mapped.length > 0 && !sel) {
+        setSel(mapped[0].id);
+      }
+    }
+    setLoading(false);
+  };
+
+  const patch = async (id: string, p: Partial<StudentRecord>) => {
+    const updateData: any = {};
+    if (p.allowed !== undefined) updateData.allowed = p.allowed;
+    if (p.lockAll !== undefined) updateData.lockAll = p.lockAll;
+    if (p.note !== undefined) updateData.note = p.note;
+    if (p.lessons !== undefined) updateData.lessons = p.lessons;
+    if (p.panels !== undefined) updateData.panels = p.panels;
+    if (p.exam !== undefined) updateData.exam = p.exam;
+    if (p.is_active !== undefined) updateData.is_active = p.is_active;
+
+    const { error } = await supabase.from('students').update(updateData).eq('id', id);
+    if (error) {
+      console.error('Error updating student:', error);
+    } else {
+      setStudents((prev) => prev.map((s) => (s.id === id ? { ...s, ...p } : s)));
+    }
+  };
+
+  const addStudent = async () => {
+    if (!newName.trim()) return;
+    const { data, error } = await supabase.from('students').insert([{
+      name: newName.trim(),
+      group: newGroup.trim() || 'Без группы',
+      email: newEmail.trim(),
+      password: newPassword.trim(),
+      since: new Date().toISOString().split('T')[0],
+      allowed: [],
+      lockAll: false,
+      lessons: {},
+      panels: {},
+      exam: 0,
+      note: '',
+      is_active: true,
+    }]).select().single();
+
+    if (error) {
+      console.error('Error adding student:', error);
+      sfx.error();
+    } else if (data) {
+      const newStudent: StudentRecord = {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        group: data.group,
+        since: data.since,
+        allowed: data.allowed || [],
+        lockAll: data.lockAll || false,
+        lessons: data.lessons || {},
+        panels: data.panels || {},
+        exam: data.exam || 0,
+        note: data.note || '',
+      };
+      setStudents((prev) => [newStudent, ...prev]);
+      setSel(newStudent.id);
+      setNewName('');
+      setNewGroup('');
+      setNewEmail('');
+      setNewPassword('');
+      sfx.spark();
+    }
+  };
+
+  const deleteStudent = async (id: string) => {
+    const { error } = await supabase.from('students').delete().eq('id', id);
+    if (error) {
+      console.error('Error deleting student:', error);
+      sfx.error();
+    } else {
+      setStudents((prev) => prev.filter((s) => s.id !== id));
+      if (sel === id) setSel(null);
+      sfx.remove();
+    }
+  };
+
+  const toggleLesson = async (lid: number) => {
+    if (!sel) return;
+    const cur = students.find((s) => s.id === sel);
+    if (!cur) return;
+    const all = cur.allowed.length === 0;
+    const base = all ? LEVELS.map((l) => l.id) : cur.allowed;
+    const next = base.includes(lid) ? base.filter((x) => x !== lid) : [...base, lid];
+    const allowed = next.length === LEVELS.length ? [] : next;
+    await patch(sel, { allowed });
+    sfx.click();
+  };
+
+  const isOpen = (lid: number) => {
+    const cur = students.find((s) => s.id === sel);
+    if (!cur) return false;
+    return !cur.lockAll && (cur.allowed.length === 0 || cur.allowed.includes(lid));
+  };
+
+  const cur = students.find((s) => s.id === sel) ?? null;
+  const list = students.filter((s) => (s.name + s.group).toLowerCase().includes(query.toLowerCase()));
 
   if (!authed) {
     return (
@@ -84,22 +217,6 @@ export default function Admin({
     );
   }
 
-  const list = students.filter((s) => (s.name + s.group).toLowerCase().includes(query.toLowerCase()));
-  const cur = students.find((s) => s.id === sel) ?? null;
-
-  const patch = (id: string, p: Partial<StudentRecord>) => onChange(students.map((s) => (s.id === id ? { ...s, ...p } : s)));
-
-  const toggleLesson = (lid: number) => {
-    if (!cur) return;
-    const all = cur.allowed.length === 0;
-    const base = all ? LEVELS.map((l) => l.id) : cur.allowed;
-    const next = base.includes(lid) ? base.filter((x) => x !== lid) : [...base, lid];
-    patch(cur.id, { allowed: next.length === LEVELS.length ? [] : next });
-    sfx.click();
-  };
-
-  const isOpen = (lid: number) => !cur?.lockAll && (cur?.allowed.length === 0 || cur!.allowed.includes(lid));
-
   return (
     <div className="blueprint min-h-screen bg-[#070b12] pb-10">
       <header className="mx-auto flex w-full max-w-[1400px] flex-wrap items-center gap-3 px-4 pt-3 pl-16 sm:pt-5">
@@ -127,7 +244,9 @@ export default function Admin({
           </div>
 
           <div className="mt-3 max-h-[46vh] space-y-1.5 overflow-y-auto pr-1">
-            {list.map((s) => (
+            {loading ? (
+              <p className="py-6 text-center text-xs text-slate-600">Загрузка...</p>
+            ) : list.map((s) => (
               <button
                 key={s.id}
                 onClick={() => setSel(s.id)}
@@ -141,7 +260,7 @@ export default function Admin({
                 {s.lockAll ? <Lock className="h-4 w-4 text-red-400" /> : <Unlock className="h-4 w-4 text-emerald-400" />}
               </button>
             ))}
-            {list.length === 0 && <p className="py-6 text-center text-xs text-slate-600">Учеников нет</p>}
+            {!loading && list.length === 0 && <p className="py-6 text-center text-xs text-slate-600">Учеников нет</p>}
           </div>
 
           <div className="mt-3 space-y-2 rounded-xl border border-line bg-[#0b111c] p-3">
@@ -150,16 +269,10 @@ export default function Admin({
             </div>
             <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Имя и фамилия" className="w-full rounded-lg border border-line bg-[#0a101b] px-3 py-2 text-sm text-slate-100 outline-none focus:border-volt/60" />
             <input value={newGroup} onChange={(e) => setNewGroup(e.target.value)} placeholder="Группа" className="w-full rounded-lg border border-line bg-[#0a101b] px-3 py-2 text-sm text-slate-100 outline-none focus:border-volt/60" />
+            <input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="Email для входа" className="w-full rounded-lg border border-line bg-[#0a101b] px-3 py-2 text-sm text-slate-100 outline-none focus:border-volt/60" />
+            <input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Пароль" type="password" className="w-full rounded-lg border border-line bg-[#0a101b] px-3 py-2 text-sm text-slate-100 outline-none focus:border-volt/60" />
             <button
-              onClick={() => {
-                if (!newName.trim()) return;
-                const s = makeStudent(newName.trim(), newGroup.trim() || 'Без группы');
-                onChange([...students, s]);
-                setSel(s.id);
-                setNewName('');
-                setNewGroup('');
-                sfx.spark();
-              }}
+              onClick={addStudent}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-volt py-2.5 font-display text-xs tracking-wide text-black hover:bg-volt-2"
             >
               <Plus className="h-4 w-4" /> ДОБАВИТЬ
@@ -183,6 +296,7 @@ export default function Admin({
                     <div className="text-xs text-slate-500">
                       {cur.group} · обучается с {cur.since}
                     </div>
+                    {cur.email && <div className="text-[11px] text-slate-600">{cur.email}</div>}
                   </div>
                   <div className="ml-auto flex flex-wrap items-center gap-2">
                     <button
@@ -193,11 +307,7 @@ export default function Admin({
                       {cur.lockAll ? 'Доступ закрыт' : 'Доступ открыт'}
                     </button>
                     <button
-                      onClick={() => {
-                        onChange(students.filter((s) => s.id !== cur.id));
-                        setSel(null);
-                        sfx.remove();
-                      }}
+                      onClick={() => deleteStudent(cur.id)}
                       className="rounded-xl border border-line bg-panel p-2.5 text-slate-400 hover:text-red-400"
                       title="Удалить ученика"
                     >
