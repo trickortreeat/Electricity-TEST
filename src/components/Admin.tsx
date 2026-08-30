@@ -125,7 +125,7 @@ export default function Admin({
         .from('students')
         .insert(newRec)
         .select()
-        .single();
+        .maybeSingle();
       if (insertError) throw insertError;
       setStudents(prev => [...prev, data as StudentRecord]);
       setSel(data.id);

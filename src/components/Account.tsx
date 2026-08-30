@@ -80,7 +80,7 @@ export function AccountModal({
         .from('students')
         .select('*')
         .eq('id', data.user.id)
-        .single();
+        .maybeSingle();
 
       if (fetchError && fetchError.code !== 'PGRST116') {
         // PGRST116 = no rows found
@@ -102,7 +102,7 @@ export function AccountModal({
           .from('students')
           .insert(newRec)
           .select()
-          .single();
+          .maybeSingle();
         if (insertError) throw insertError;
         profile = toStudentProfile(inserted as StudentRecord);
       }

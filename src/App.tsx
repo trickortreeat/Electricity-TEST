@@ -238,13 +238,13 @@ export default function App() {
 
 
       {screen.name === 'studio' && (
-        <LessonGate student={save.studentRecord} lessonId={-1}>
+        <LessonGate lessonId={-1}>
           <Studio onExit={() => setScreen({ name: 'menu' })} />
         </LessonGate>
       )}
 
       {screen.name === 'theory' && (
-        <LessonGate student={save.studentRecord} lessonId={-1}>
+        <LessonGate lessonId={-1}>
           <Theory onExit={() => setScreen({ name: 'menu' })} />
         </LessonGate>
       )}
@@ -275,7 +275,7 @@ export default function App() {
       )}
 
       {screen.name === 'game' && (
-        <LessonGate student={save.studentRecord} lessonId={LEVELS[screen.levelIdx].id}>
+        <LessonGate lessonId={LEVELS[screen.levelIdx].id}>
           <Game
             key={LEVELS[screen.levelIdx].id}
             level={LEVELS[screen.levelIdx]}
@@ -293,7 +293,7 @@ export default function App() {
       )}
 
       {screen.name === 'build' && (
-        <LessonGate student={save.studentRecord} lessonId={PANEL_TASKS[screen.taskIdx].id}>
+        <LessonGate lessonId={PANEL_TASKS[screen.taskIdx].id}>
           <Builder
             key={PANEL_TASKS[screen.taskIdx].id}
             task={PANEL_TASKS[screen.taskIdx]}
@@ -310,7 +310,7 @@ export default function App() {
       )}
 
       {screen.name === 'exam' && (
-        <LessonGate student={save.studentRecord} lessonId={-2}>
+        <LessonGate lessonId={-2}>
           <Quiz
             onExit={() => setScreen({ name: 'menu' })}
             onFinished={(score, total) =>
