@@ -10,6 +10,7 @@ import { GlossaryPanel, Tip } from './Tips';
 import { ChevronRight, HelpCircle, Shield } from 'lucide-react';
 import { CHAPTERS, LEVEL_COLORS } from '../theory';
 import type { DeviceDef } from '../types';
+import type { StudentRecord } from '../lib/supabase';
 
 const ACTS = [
   { title: 'АКТ I · Основы электрики', desc: 'провода, коробка, автомат, УЗО', range: [0, 8] as [number, number] },
@@ -66,6 +67,7 @@ export default function Menu({
   onTheory,
   initialMode,
   accountSlot,
+  studentRecord,
 }: {
   progress: Record<number, number>;
   panelProgress: Record<number, number>;
@@ -78,12 +80,24 @@ export default function Menu({
   onTheory: () => void;
   initialMode?: Mode;
   accountSlot?: React.ReactNode;
+  studentRecord?: StudentRecord | null;
 }) {
   const [mode, setMode] = useState<Mode>(initialMode ?? 'lessons');
 
   useEffect(() => {
     if (initialMode) setMode(initialMode);
   }, [initialMode]);
+
+  // Проверка доступа к уроку на основе записи студента из Supabase
+  const isLessonLocked = (lessonId: number): boolean => {
+    if (!studentRecord) return false; // Нет авторизации - доступ открыт
+    if (!studentRecord.is_active) return true; // Аккаунт не активен
+    if (studentRecord.lockAll) return true; // Все уроки заблокированы админом
+    // Если allowed пустой - все уроки открыты, иначе проверяем наличие урока в списке
+    if (studentRecord.allowed.length === 0) return false;
+    return !studentRecord.allowed.includes(lessonId);
+  };
+
   const [glossary, setGlossary] = useState(false);
   const [calc, setCalc] = useState(false);
   const theoryMin = CHAPTERS.reduce((a, c) => a + c.minutes, 0);
@@ -294,24 +308,38 @@ export default function Menu({
                 {LEVELS.slice(act.range[0], act.range[1]).map((l, k) => {
                   const i = LEVELS.indexOf(l);
                   const st = progress[l.id] ?? 0;
+                  const locked = isLessonLocked(l.id);
                   return (
                     <button
                       key={l.id}
-                      onClick={() => onPlay(i)}
+                      onClick={() => {
+                        if (locked) {
+                          alert('Доступ к уроку закрыт. Обратитесь к преподавателю.');
+                          return;
+                        }
+                        onPlay(i);
+                      }}
+                      disabled={locked}
                       style={{ animationDelay: `${k * 45}ms` }}
-                      className="reveal lift group relative overflow-hidden rounded-2xl border border-line bg-panel p-5 text-left hover:border-volt/60"
+                      className={`reveal lift group relative overflow-hidden rounded-2xl border p-5 text-left transition ${
+                        locked
+                          ? 'cursor-not-allowed border-line bg-[#0a101b] opacity-60'
+                          : 'border-line bg-panel hover:border-volt/60'
+                      }`}
                     >
                       <div className="flex items-start justify-between">
-                        <span className="font-display text-3xl text-slate-700 transition group-hover:text-volt/80">{String(l.id).padStart(2, '0')}</span>
-                        <span className={`rounded-md p-1.5 ${st > 0 ? 'bg-emerald-500/15' : 'bg-volt/15'}`}>
-                          {st > 0 ? <Check className="h-4 w-4 text-emerald-400" /> : <Play className="h-4 w-4 text-volt" />}
+                        <span className={`font-display text-3xl transition ${locked ? 'text-slate-800' : 'text-slate-700 group-hover:text-volt/80'}`}>
+                          {String(l.id).padStart(2, '0')}
+                        </span>
+                        <span className={`rounded-md p-1.5 ${locked ? 'bg-slate-700/30' : st > 0 ? 'bg-emerald-500/15' : 'bg-volt/15'}`}>
+                          {locked ? <Lock className="h-4 w-4 text-slate-500" /> : st > 0 ? <Check className="h-4 w-4 text-emerald-400" /> : <Play className="h-4 w-4 text-volt" />}
                         </span>
                       </div>
-                      <div className="mt-3 font-display text-[15px] leading-snug text-white">{l.title}</div>
-                      <div className="mt-1.5 text-xs font-bold tracking-wider text-slate-500 uppercase">{l.tag}</div>
+                      <div className={`mt-3 font-display text-[15px] leading-snug ${locked ? 'text-slate-500' : 'text-white'}`}>{l.title}</div>
+                      <div className={`mt-1.5 text-xs font-bold tracking-wider uppercase ${locked ? 'text-slate-600' : 'text-slate-500'}`}>{l.tag}</div>
                       <div className="mt-3 flex gap-1">
                         {[1, 2, 3].map((s) => (
-                          <Star key={s} className={`h-4 w-4 ${s <= st ? 'fill-volt text-volt' : 'text-slate-700'}`} />
+                          <Star key={s} className={`h-4 w-4 ${locked ? 'text-slate-800' : s <= st ? 'fill-volt text-volt' : 'text-slate-700'}`} />
                         ))}
                       </div>
                       <div className="pointer-events-none absolute -right-8 -bottom-8 opacity-0 transition group-hover:opacity-100">

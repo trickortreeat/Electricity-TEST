@@ -14,6 +14,7 @@ import { GlossaryPanel } from './components/Tips';
 import { AccountChip, AccountModal, type Student } from './components/Account';
 import { LEVELS } from './levels';
 import { PANEL_TASKS } from './content';
+import { supabase, toStudentProfile, createEmptyStudentRecord, type StudentProfile } from './lib/supabase';
 
 const LS_KEY = 'electromaster_progress_v2';
 
@@ -32,6 +33,7 @@ interface Save {
   panels: Record<number, number>;
   exam: number;
   student: Student | null;
+  studentRecord: StudentRecord | null;
   students: StudentRecord[];
 }
 
@@ -43,10 +45,11 @@ function loadSave(): Save {
       panels: raw.panels ?? {},
       exam: raw.exam ?? 0,
       student: raw.student ?? null,
+      studentRecord: raw.studentRecord ?? null,
       students: raw.students ?? [],
     };
   } catch {
-    return { lessons: {}, panels: {}, exam: 0, student: null, students: [] };
+    return { lessons: {}, panels: {}, exam: 0, student: null, studentRecord: null, students: [] };
   }
 }
 
@@ -57,10 +60,72 @@ export default function App() {
   const [calcOpen, setCalcOpen] = useState(false);
   const [glossOpen, setGlossOpen] = useState(false);
   const [menuMode, setMenuMode] = useState<'lessons' | 'panels' | 'exam' | undefined>(undefined);
+  const [loadingProgress, setLoadingProgress] = useState(false);
 
+  // Загрузка актуального профиля ученика из Supabase при наличии сессии
+  useEffect(() => {
+    const loadStudentFromSupabase = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+
+      setLoadingProgress(true);
+      try {
+        const { data: studentData, error: fetchError } = await supabase
+          .from('students')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          throw fetchError;
+        }
+
+        if (studentData) {
+          const rec = studentData as StudentRecord;
+          const profile = toStudentProfile(rec);
+          setSave((prev) => ({
+            ...prev,
+            student: { ...profile, name: rec.name, group: rec.group, city: rec.city, goal: rec.goal, level: rec.level, sound: rec.sound, hints: rec.hints, bigText: rec.bigText } as Student,
+            studentRecord: rec,
+            lessons: rec.lessons || {},
+            panels: rec.panels || {},
+          }));
+          // Обновление last_seen
+          await supabase.from('students').update({ last_seen: new Date().toISOString() }).eq('id', session.user.id);
+        }
+      } catch (e) {
+        console.error('Ошибка загрузки профиля:', e);
+      } finally {
+        setLoadingProgress(false);
+      }
+    };
+
+    loadStudentFromSupabase();
+  }, []);
+
+  // Сохранение прогресса в localStorage и Supabase
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(save));
-  }, [save]);
+
+    // Если ученик авторизован - сохраняем прогресс в Supabase
+    if (save.studentRecord?.id) {
+      const debounce = setTimeout(async () => {
+        try {
+          await supabase
+            .from('students')
+            .update({
+              lessons: save.lessons,
+              panels: save.panels,
+              last_seen: new Date().toISOString(),
+            })
+            .eq('id', save.studentRecord.id);
+        } catch (e) {
+          console.error('Ошибка сохранения прогресса:', e);
+        }
+      }, 500);
+      return () => clearTimeout(debounce);
+    }
+  }, [save.lessons, save.panels, save.studentRecord?.id]);
 
   // ---- глобальная навигация из бокового меню ----
   const navActive: NavTarget =
@@ -145,6 +210,7 @@ export default function App() {
           panelProgress={save.panels}
           examBest={save.exam}
           initialMode={menuMode}
+          studentRecord={save.studentRecord}
           onPlay={(i) => setScreen({ name: 'game', levelIdx: i })}
           onBuild={(i) => setScreen({ name: 'build', taskIdx: i })}
           onExam={() => setScreen({ name: 'exam' })}
@@ -175,8 +241,9 @@ export default function App() {
             stars: totalStars,
           }}
           onSave={(s) => setSave((v) => ({ ...v, student: s }))}
-          onLogout={() => {
-            setSave((v) => ({ ...v, student: null }));
+          onLogout={async () => {
+            await supabase.auth.signOut();
+            setSave((v) => ({ ...v, student: null, studentRecord: null }));
             setAccountOpen(false);
           }}
           onClose={() => setAccountOpen(false)}

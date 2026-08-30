@@ -192,20 +192,45 @@ export function AccountModal({
     }
   };
 
-  const saveProfile = () => {
-    if (!name.trim()) return;
-    onSave({
-      ...(student as Student),
-      name: name.trim(),
-      group: group.trim() || 'Самостоятельное обучение',
-      city: city.trim(),
-      goal,
-      level,
-      sound,
-      hints,
-      bigText,
-    });
-    setEdit(false);
+  const saveProfile = async () => {
+    if (!name.trim() || !student?.id) return;
+    setLoading(true);
+    try {
+      // Обновление профиля в Supabase
+      const { error: updateError } = await supabase
+        .from('students')
+        .update({
+          name: name.trim(),
+          group: group.trim() || 'Самостоятельное обучение',
+          city: city.trim(),
+          goal,
+          level,
+          sound: sound === true,
+          hints: hints === true,
+          bigText: bigText === true,
+        })
+        .eq('id', student.id);
+      
+      if (updateError) throw updateError;
+
+      onSave({
+        ...student,
+        name: name.trim(),
+        group: group.trim() || 'Самостоятельное обучение',
+        city: city.trim(),
+        goal,
+        level,
+        sound,
+        hints,
+        bigText,
+      });
+      setEdit(false);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Ошибка сохранения';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const pct = Math.round(((stats.lessons + stats.panels) / Math.max(1, stats.lessonsMax + stats.panelsMax)) * 100);
