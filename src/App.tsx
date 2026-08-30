@@ -1,21 +1,25 @@
 import { useEffect, useState } from 'react';
-import { Award, Home, RotateCcw, Star, Trophy, Zap } from 'lucide-react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Award, Home, RotateCcw, Star, Trophy, Zap, Globe } from 'lucide-react';
 import Menu from './components/Menu';
-import Game from './components/Game';
 import Builder from './components/Builder';
 import Quiz from './components/Quiz';
 import Studio from './components/Studio';
-import Admin, { type StudentRecord } from './components/Admin';
 import Theory from './components/Theory';
 import Sidebar, { type NavTarget } from './components/Sidebar';
 import ScrollTop from './components/ScrollTop';
 import LoadCalc from './components/LoadCalc';
 import { GlossaryPanel } from './components/Tips';
 import { AccountChip, AccountModal, type Student } from './components/Account';
+import Login from './components/Login';
+import AdminPanel from './components/AdminPanel';
+import { ProtectedLesson, LessonLocked } from './components/ProtectedLesson';
 import { LEVELS } from './levels';
 import { PANEL_TASKS } from './content';
+import { translations, type Language } from './i18n';
 
 const LS_KEY = 'electromaster_progress_v2';
+const LS_LANG_KEY = 'electromaster_language';
 
 type Screen =
   | { name: 'menu' }
@@ -23,7 +27,6 @@ type Screen =
   | { name: 'build'; taskIdx: number }
   | { name: 'exam' }
   | { name: 'studio' }
-  | { name: 'admin' }
   | { name: 'theory' }
   | { name: 'final' };
 
@@ -57,10 +60,27 @@ export default function App() {
   const [calcOpen, setCalcOpen] = useState(false);
   const [glossOpen, setGlossOpen] = useState(false);
   const [menuMode, setMenuMode] = useState<'lessons' | 'panels' | 'exam' | undefined>(undefined);
+  const [lang, setLang] = useState<Language>(() => {
+    try {
+      const stored = localStorage.getItem(LS_LANG_KEY);
+      if (stored === 'ru' || stored === 'en') return stored;
+    } catch {}
+    return 'ru';
+  });
+
+  const t = translations[lang];
 
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(save));
   }, [save]);
+
+  useEffect(() => {
+    localStorage.setItem(LS_LANG_KEY, lang);
+  }, [lang]);
+
+  const toggleLanguage = () => {
+    setLang((prev) => (prev === 'ru' ? 'en' : 'ru'));
+  };
 
   // ---- глобальная навигация из бокового меню ----
   const navActive: NavTarget =
@@ -76,9 +96,7 @@ export default function App() {
               ? 'theory'
               : screen.name === 'studio'
                 ? 'studio'
-                : screen.name === 'admin'
-                  ? 'admin'
-                  : 'menu';
+                : 'menu';
 
   const navigate = (t: NavTarget) => {
     switch (t) {
@@ -102,9 +120,6 @@ export default function App() {
       case 'studio':
         setScreen({ name: 'studio' });
         break;
-      case 'admin':
-        setScreen({ name: 'admin' });
-        break;
       case 'calc':
         setCalcOpen(true);
         break;
@@ -125,13 +140,16 @@ export default function App() {
   const totalStars = Object.values(save.lessons).reduce((a, b) => a + b, 0) + Object.values(save.panels).reduce((a, b) => a + b, 0);
   const maxStars = (LEVELS.length + PANEL_TASKS.length) * 3;
 
-  return (
+  // Основной контент приложения (без роутинга)
+  const MainContent = () => (
     <>
       <Sidebar
         active={navActive}
         onNavigate={navigate}
         studentName={save.student?.name ?? null}
         stats={{ lessons: Object.keys(save.lessons).length, panels: Object.keys(save.panels).length, exam: save.exam }}
+        lang={lang}
+        onToggleLang={toggleLanguage}
       />
 
       <ScrollTop />
@@ -149,19 +167,16 @@ export default function App() {
           onBuild={(i) => setScreen({ name: 'build', taskIdx: i })}
           onExam={() => setScreen({ name: 'exam' })}
           onStudio={() => setScreen({ name: 'studio' })}
-          onAdmin={() => setScreen({ name: 'admin' })}
           onTheory={() => setScreen({ name: 'theory' })}
           accountSlot={<AccountChip student={save.student} onOpen={() => setAccountOpen(true)} />}
+          lang={lang}
+          onToggleLang={toggleLanguage}
         />
       )}
 
       {screen.name === 'studio' && <Studio onExit={() => setScreen({ name: 'menu' })} />}
 
       {screen.name === 'theory' && <Theory onExit={() => setScreen({ name: 'menu' })} />}
-
-      {screen.name === 'admin' && (
-        <Admin students={save.students} onChange={(students) => setSave((v) => ({ ...v, students }))} onExit={() => setScreen({ name: 'menu' })} />
-      )}
 
       {accountOpen && (
         <AccountModal
@@ -231,11 +246,10 @@ export default function App() {
                 <Trophy className="h-16 w-16 text-volt" />
               </div>
             </div>
-            <div className="mt-6 font-mono text-xs tracking-[0.3em] text-slate-500 uppercase">ЭлектроМастер · итоговый протокол</div>
-            <h1 className="mt-3 font-display text-3xl text-white sm:text-4xl">Диплом электромонтажника получен!</h1>
+            <div className="mt-6 font-mono text-xs tracking-[0.3em] text-slate-500 uppercase">{t.final_protocol}</div>
+            <h1 className="mt-3 font-display text-3xl text-white sm:text-4xl">{t.final_title}</h1>
             <p className="mx-auto mt-4 max-w-lg leading-relaxed text-slate-400">
-              Вы прошли путь от трёх проводов до многорядных щитов с реле напряжения, УЗИП, кросс-модулями,
-              контакторами, трёхфазным вводом и зарядными станциями для электромобилей.
+              {t.final_desc}
             </p>
 
             <div className="mx-auto mt-6 grid max-w-lg grid-cols-3 gap-2 sm:gap-3">
@@ -244,32 +258,30 @@ export default function App() {
                 <div className="mt-2 font-display text-2xl text-white">
                   {totalStars} <span className="text-sm text-slate-500">/ {maxStars}</span>
                 </div>
-                <div className="text-xs text-slate-500">звёзд</div>
+                <div className="text-xs text-slate-500">{t.stats_stars}</div>
               </div>
               <div className="rounded-2xl border border-line bg-panel p-4">
                 <Award className="mx-auto h-6 w-6 text-sky-400" />
                 <div className="mt-2 font-display text-2xl text-white">
                   {Object.keys(save.lessons).length} / {LEVELS.length}
                 </div>
-                <div className="text-xs text-slate-500">уроков</div>
+                <div className="text-xs text-slate-500">{t.stats_lessons}</div>
               </div>
               <div className="rounded-2xl border border-line bg-panel p-4">
                 <Zap className="mx-auto h-6 w-6 text-emerald-400" />
                 <div className="mt-2 font-display text-2xl text-white">
                   {Object.keys(save.panels).length} / {PANEL_TASKS.length}
                 </div>
-                <div className="text-xs text-slate-500">щитов</div>
+                <div className="text-xs text-slate-500">{t.stats_panels}</div>
               </div>
             </div>
 
             <div className="mt-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-left">
               <div className="flex items-center gap-2 text-sm font-bold text-amber-300">
-                <Zap className="h-4 w-4" /> Памятка на всю жизнь
+                <Zap className="h-4 w-4" /> {t.final_tip_title}
               </div>
               <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                Автомат защищает проводку, УЗО — человека, реле напряжения — технику, УЗИП — от импульсов. Выключатель
-                всегда в разрыв фазы, номинал автомата — по сечению кабеля, земля не проходит ни через один аппарат.
-                И всегда: сначала отключи питание, потом работай.
+                {t.final_tip_text}
               </p>
             </div>
 
@@ -282,24 +294,35 @@ export default function App() {
                 }}
                 className="flex items-center gap-2 rounded-xl border border-line bg-panel px-5 py-3 text-sm font-bold text-slate-300 transition hover:border-volt/50 hover:text-white"
               >
-                <RotateCcw className="h-4 w-4" /> Сбросить прогресс
+                <RotateCcw className="h-4 w-4" /> {t.btn_reset_progress}
               </button>
               <button
                 onClick={() => setScreen({ name: 'exam' })}
                 className="flex items-center gap-2 rounded-xl border border-fuchsia-500/40 bg-fuchsia-500/10 px-5 py-3 text-sm font-bold text-fuchsia-300 transition hover:bg-fuchsia-500/20"
               >
-                Экзамен ({save.exam}%)
+                {t.exam_title} ({save.exam}%)
               </button>
               <button
                 onClick={() => setScreen({ name: 'menu' })}
                 className="flex items-center gap-2 rounded-xl bg-volt px-6 py-3 font-display text-sm tracking-wide text-black transition hover:bg-volt-2"
               >
-                <Home className="h-4 w-4" /> В МЕНЮ
+                <Home className="h-4 w-4" /> {t.final_menu_btn}
               </button>
             </div>
           </div>
         </div>
       )}
     </>
+  );
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login lang={lang} />} />
+        <Route path="/admin" element={<AdminPanel lang={lang} />} />
+        <Route path="/" element={<MainContent />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
