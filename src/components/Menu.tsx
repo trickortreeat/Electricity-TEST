@@ -112,11 +112,9 @@ export default function Menu({
       {/* верхняя строка: место под кнопку сайдбара слева */}
       <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-2 px-3 pt-3 pl-16 sm:gap-3 sm:px-4 sm:pt-5 sm:pl-17">
         {accountSlot}
-        <Tip text="Панель преподавателя. Демо-код 2024">
-          <button onClick={onAdmin} className="hidden items-center gap-2 rounded-xl border border-line bg-panel px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-red-400/50 hover:text-white sm:flex">
-            <Shield className="h-3.5 w-3.5 text-red-400" /> Администратор
-          </button>
-        </Tip>
+        <button onClick={onAdmin} className="hidden items-center gap-2 rounded-xl border border-line bg-panel px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-red-400/50 hover:text-white sm:flex">
+          <Shield className="h-3.5 w-3.5 text-red-400" /> Администратор
+        </button>
         <Tip text="Справочник: фаза, ноль, земля и основные термины">
           <button onClick={() => setGlossary(true)} className="hidden items-center gap-2 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-bold text-sky-300 transition hover:bg-sky-500/20 sm:flex">
             <HelpCircle className="h-3.5 w-3.5" /> L / N / PE
