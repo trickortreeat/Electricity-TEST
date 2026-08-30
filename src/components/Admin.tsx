@@ -1,55 +1,160 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Check, Lock, Plus, Search, Shield, Trash2, Unlock, UserPlus, Users } from 'lucide-react';
 import { LEVELS } from '../levels';
 import { PANEL_TASKS } from '../content';
 import { MvpNote, TgBadge } from './Telegram';
 import { sfx } from '../audio';
+import { supabase, type StudentRecord } from '../lib/supabase';
 
-export interface StudentRecord {
-  id: string;
-  name: string;
-  group: string;
-  since: string;
-  allowed: number[];       // id открытых уроков; пустой массив = все открыты
-  lockAll: boolean;        // полная блокировка доступа
-  lessons: Record<number, number>;
-  panels: Record<number, number>;
-  exam: number;
-  note: string;
-}
-
-export function makeStudent(name: string, group: string): StudentRecord {
+export function makeStudentRecord(name: string, group: string): Partial<StudentRecord> {
   return {
-    id: `s${Date.now()}${Math.floor(Math.random() * 999)}`,
     name,
     group,
-    since: new Date().toLocaleDateString('ru-RU'),
     allowed: [],
     lockAll: false,
     lessons: {},
     panels: {},
-    exam: 0,
     note: '',
   };
 }
 
-const PIN = '2024';
-
 export default function Admin({
-  students,
-  onChange,
   onExit,
 }: {
-  students: StudentRecord[];
-  onChange: (s: StudentRecord[]) => void;
   onExit: () => void;
 }) {
   const [authed, setAuthed] = useState(false);
-  const [pin, setPin] = useState('');
-  const [sel, setSel] = useState<string | null>(students[0]?.id ?? null);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [sel, setSel] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [newName, setNewName] = useState('');
   const [newGroup, setNewGroup] = useState('');
+  const [students, setStudents] = useState<StudentRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Загрузка списка учеников при авторизации
+  useEffect(() => {
+    if (authed) {
+      loadStudents();
+    }
+  }, [authed]);
+
+  const loadStudents = async () => {
+    setLoading(true);
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('students')
+        .select('*')
+        .order('name', { ascending: true });
+      if (fetchError) throw fetchError;
+      setStudents(data as StudentRecord[] || []);
+      if (data && data.length > 0 && !sel) {
+        setSel(data[0].id);
+      }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Ошибка загрузки';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async () => {
+    setError(null);
+    if (!adminEmail.trim() || !adminPassword) {
+      setError('Введите email и пароль');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email: adminEmail.trim(),
+        password: adminPassword,
+      });
+      if (signInError) throw signInError;
+      if (!data.user) throw new Error('Пользователь не найден');
+      setAuthed(true);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Ошибка входа';
+      setError(msg.includes('Invalid login credentials') ? 'Неверный email или пароль' : msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const patch = async (id: string, p: Partial<StudentRecord>) => {
+    try {
+      const { error: updateError } = await supabase
+        .from('students')
+        .update(p)
+        .eq('id', id);
+      if (updateError) throw updateError;
+      setStudents(prev => prev.map((s) => (s.id === id ? { ...s, ...p } as StudentRecord : s)));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Ошибка обновления';
+      setError(msg);
+    }
+  };
+
+  const toggleLesson = async (lid: number) => {
+    if (!sel) return;
+    const cur = students.find(s => s.id === sel);
+    if (!cur) return;
+    const all = cur.allowed.length === 0;
+    const base = all ? LEVELS.map((l) => l.id) : cur.allowed;
+    const next = base.includes(lid) ? base.filter((x) => x !== lid) : [...base, lid];
+    const allowedValue: number[] = next.length === LEVELS.length ? [] : next;
+    await patch(cur.id, { allowed: allowedValue });
+    sfx.click();
+  };
+
+  const isOpen = (lid: number) => {
+    const cur = students.find(s => s.id === sel);
+    if (!cur) return false;
+    return !cur.lockAll && (cur.allowed.length === 0 || cur.allowed.includes(lid));
+  };
+
+  const handleAddStudent = async () => {
+    if (!newName.trim()) return;
+    setLoading(true);
+    try {
+      const newRec: Partial<StudentRecord> = makeStudentRecord(newName.trim(), newGroup.trim() || 'Без группы');
+      const { data, error: insertError } = await supabase
+        .from('students')
+        .insert(newRec)
+        .select()
+        .single();
+      if (insertError) throw insertError;
+      setStudents(prev => [...prev, data as StudentRecord]);
+      setSel(data.id);
+      setNewName('');
+      setNewGroup('');
+      sfx.spark();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Ошибка добавления';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteStudent = async (id: string) => {
+    try {
+      const { error: deleteError } = await supabase.from('students').delete().eq('id', id);
+      if (deleteError) throw deleteError;
+      setStudents(prev => prev.filter(s => s.id !== id));
+      if (sel === id) setSel(null);
+      sfx.remove();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Ошибка удаления';
+      setError(msg);
+    }
+  };
+
+  const cur = students.find((s) => s.id === sel) ?? null;
+  const list = students.filter((s) => (s.name + s.group).toLowerCase().includes(query.toLowerCase()));
 
   if (!authed) {
     return (
@@ -59,46 +164,37 @@ export default function Admin({
             <Shield className="h-8 w-8 text-red-400" />
           </div>
           <h2 className="mt-4 font-display text-xl text-white">Панель администратора</h2>
-          <p className="mt-2 text-sm text-slate-400">Введите PIN-код преподавателя</p>
+          <p className="mt-2 text-sm text-slate-400">Войдите как администратор</p>
           <input
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && pin === PIN && setAuthed(true)}
-            type="password"
-            placeholder="••••"
-            className="mt-4 w-full rounded-xl border border-line bg-[#0a101b] px-4 py-3 text-center font-mono text-lg tracking-[0.5em] text-slate-100 outline-none focus:border-volt/60"
+            value={adminEmail}
+            onChange={(e) => setAdminEmail(e.target.value)}
+            type="email"
+            placeholder="Email"
+            className="mt-4 w-full rounded-xl border border-line bg-[#0a101b] px-4 py-3 text-sm text-slate-100 outline-none focus:border-volt/60"
           />
-          {pin.length >= 4 && pin !== PIN && <p className="mt-2 text-xs text-red-400">Неверный код</p>}
+          <input
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            type="password"
+            placeholder="Пароль"
+            className="mt-3 w-full rounded-xl border border-line bg-[#0a101b] px-4 py-3 text-sm text-slate-100 outline-none focus:border-volt/60"
+          />
+          {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
           <button
-            onClick={() => (pin === PIN ? setAuthed(true) : sfx.error())}
-            className="mt-4 w-full rounded-xl bg-volt py-3 font-display text-sm tracking-wide text-black hover:bg-volt-2"
+            onClick={handleLogin}
+            disabled={loading}
+            className="mt-4 w-full rounded-xl bg-volt py-3 font-display text-sm tracking-wide text-black hover:bg-volt-2 disabled:opacity-50"
           >
-            ВОЙТИ
+            {loading ? 'Вход...' : 'ВОЙТИ'}
           </button>
           <button onClick={onExit} className="mt-2 w-full rounded-xl border border-line bg-panel py-2.5 text-sm font-bold text-slate-300 hover:text-white">
             Назад
           </button>
-          <p className="mt-3 font-mono text-[10px] text-slate-600">демо-код: 2024</p>
         </div>
       </div>
     );
   }
-
-  const list = students.filter((s) => (s.name + s.group).toLowerCase().includes(query.toLowerCase()));
-  const cur = students.find((s) => s.id === sel) ?? null;
-
-  const patch = (id: string, p: Partial<StudentRecord>) => onChange(students.map((s) => (s.id === id ? { ...s, ...p } : s)));
-
-  const toggleLesson = (lid: number) => {
-    if (!cur) return;
-    const all = cur.allowed.length === 0;
-    const base = all ? LEVELS.map((l) => l.id) : cur.allowed;
-    const next = base.includes(lid) ? base.filter((x) => x !== lid) : [...base, lid];
-    patch(cur.id, { allowed: next.length === LEVELS.length ? [] : next });
-    sfx.click();
-  };
-
-  const isOpen = (lid: number) => !cur?.lockAll && (cur?.allowed.length === 0 || cur!.allowed.includes(lid));
 
   return (
     <div className="blueprint min-h-screen bg-[#070b12] pb-10">
@@ -151,18 +247,15 @@ export default function Admin({
             <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Имя и фамилия" className="w-full rounded-lg border border-line bg-[#0a101b] px-3 py-2 text-sm text-slate-100 outline-none focus:border-volt/60" />
             <input value={newGroup} onChange={(e) => setNewGroup(e.target.value)} placeholder="Группа" className="w-full rounded-lg border border-line bg-[#0a101b] px-3 py-2 text-sm text-slate-100 outline-none focus:border-volt/60" />
             <button
-              onClick={() => {
-                if (!newName.trim()) return;
-                const s = makeStudent(newName.trim(), newGroup.trim() || 'Без группы');
-                onChange([...students, s]);
-                setSel(s.id);
-                setNewName('');
-                setNewGroup('');
-                sfx.spark();
-              }}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-volt py-2.5 font-display text-xs tracking-wide text-black hover:bg-volt-2"
+              onClick={handleAddStudent}
+              disabled={loading || !newName.trim()}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-volt py-2.5 font-display text-xs tracking-wide text-black hover:bg-volt-2 disabled:opacity-50"
             >
-              <Plus className="h-4 w-4" /> ДОБАВИТЬ
+              {loading ? 'Добавление...' : (
+                <>
+                  <Plus className="h-4 w-4" /> ДОБАВИТЬ
+                </>
+              )}
             </button>
           </div>
         </aside>
@@ -193,11 +286,7 @@ export default function Admin({
                       {cur.lockAll ? 'Доступ закрыт' : 'Доступ открыт'}
                     </button>
                     <button
-                      onClick={() => {
-                        onChange(students.filter((s) => s.id !== cur.id));
-                        setSel(null);
-                        sfx.remove();
-                      }}
+                      onClick={() => handleDeleteStudent(cur.id)}
                       className="rounded-xl border border-line bg-panel p-2.5 text-slate-400 hover:text-red-400"
                       title="Удалить ученика"
                     >
@@ -208,10 +297,9 @@ export default function Admin({
 
                 <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {[
-                    { t: 'Уроков', v: `${Object.keys(cur.lessons).length} / ${LEVELS.length}` },
-                    { t: 'Щитов', v: `${Object.keys(cur.panels).length} / ${PANEL_TASKS.length}` },
-                    { t: 'Экзамен', v: `${cur.exam}%` },
-                    { t: 'Открыто', v: cur.lockAll ? '0' : cur.allowed.length === 0 ? `${LEVELS.length}` : `${cur.allowed.length}` },
+                    { t: 'Уроков', v: `${Object.keys(cur.lessons || {}).length} / ${LEVELS.length}` },
+                    { t: 'Щитов', v: `${Object.keys(cur.panels || {}).length} / ${PANEL_TASKS.length}` },
+                    { t: 'Открыто', v: cur.lockAll ? '0' : (cur.allowed || []).length === 0 ? `${LEVELS.length}` : `${(cur.allowed || []).length}` },
                   ].map((s, i) => (
                     <div key={s.t} className="reveal rounded-xl border border-line bg-panel p-3 text-center" style={{ animationDelay: `${i * 50}ms` }}>
                       <div className="font-display text-xl text-white">{s.v}</div>
@@ -229,7 +317,7 @@ export default function Admin({
                     <button onClick={() => patch(cur.id, { allowed: [] })} className="rounded-lg border border-line bg-panel px-3 py-1.5 text-[11px] font-bold text-slate-300 hover:border-emerald-400/60">
                       Открыть все
                     </button>
-                    <button onClick={() => patch(cur.id, { allowed: [1] })} className="rounded-lg border border-line bg-panel px-3 py-1.5 text-[11px] font-bold text-slate-300 hover:border-red-400/60">
+                    <button onClick={() => patch(cur.id, { allowed: [1], lockAll: false })} className="rounded-lg border border-line bg-panel px-3 py-1.5 text-[11px] font-bold text-slate-300 hover:border-red-400/60">
                       Только первый
                     </button>
                   </div>
